@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Emberfall: Riftbound — Playable Prototype</title>
+<style>
+:root{color-scheme:dark;--cyan:#76e7f2;--gold:#ffc66d;--panel:rgba(8,14,27,.88)}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080d18;color:#eef6ff;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#hud{position:fixed;inset:0;pointer-events:none;padding:14px;display:flex;flex-direction:column;justify-content:space-between;text-shadow:0 2px 5px #000}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.panel{background:var(--panel);border:1px solid #ffffff25;border-radius:12px;padding:10px 12px;backdrop-filter:blur(8px);box-shadow:0 8px 25px #0004}
+.brand{font-size:12px;letter-spacing:.18em;color:var(--cyan);font-weight:800}.hero{font-size:19px;font-weight:850;margin:3px 0 7px}.barrow{display:flex;align-items:center;gap:8px;font-size:11px;color:#c6d3e7;margin:4px 0}.bar{width:min(190px,32vw);height:8px;background:#273044;border-radius:9px;overflow:hidden}.fill{height:100%;width:100%;transition:width .15s}.hp{background:linear-gradient(90deg,#ff596f,#ff9b75)}.xp{background:linear-gradient(90deg,#53c9ff,#9c91ff)}.right{text-align:right;min-width:150px}.objective{font-size:13px;font-weight:700;color:var(--gold)}.sub{font-size:11px;color:#b8c6dc;margin-top:4px}.bottom{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}.help{font-size:11px;line-height:1.65;color:#cbd8e9;max-width:420px}.ability{display:inline-block;border:1px solid #ffffff3b;border-radius:6px;padding:2px 6px;margin-right:3px;color:#fff;background:#ffffff10;font-weight:800}
+#message{position:fixed;top:23%;left:50%;transform:translateX(-50%);font-size:clamp(17px,3vw,27px);font-weight:900;text-align:center;color:#fff;text-shadow:0 3px 14px #000;pointer-events:none;opacity:0;transition:opacity .2s;max-width:90vw}
+#start{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at center,#17263b9c,#050912ed);padding:20px;z-index:4}
+.card{width:min(550px,100%);padding:26px;border-radius:20px;background:linear-gradient(145deg,#121e31f5,#080e1bf5);border:1px solid #91d9ff44;box-shadow:0 25px 90px #000b}
+.kicker{font-size:11px;letter-spacing:.25em;color:var(--cyan);font-weight:900}.card h1{font-size:clamp(32px,7vw,52px);line-height:.98;margin:12px 0}.card p{color:#c2d0e4;line-height:1.55}.card ul{padding-left:20px;color:#d9e4f2;line-height:1.8;font-size:14px}.btn{border:0;background:linear-gradient(90deg,#3bb8d6,#7b8cff);color:#04101b;padding:13px 18px;border-radius:10px;font-weight:900;font-size:15px;cursor:pointer;width:100%;margin-top:8px}.note{font-size:11px!important;color:#93a7c2!important}
+#touch{display:none;position:fixed;inset:auto 0 12px 0;justify-content:space-between;align-items:flex-end;padding:0 15px;pointer-events:none;z-index:2}
+.pad{display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,42px);gap:3px;pointer-events:auto}
+.touchbtn{border:1px solid #ffffff45;background:#101a2dcc;color:white;border-radius:10px;font-weight:900;font-size:16px;touch-action:none;user-select:none}
+.pad .empty{visibility:hidden}.actions{display:flex;gap:7px;align-items:flex-end;pointer-events:auto}.actions .touchbtn{width:49px;height:49px;font-size:11px}.actions .attack{width:59px;height:59px;background:#9e3d55d9}
+@media(max-width:700px){#touch{display:flex}.help{display:none}.right{min-width:0}.bar{width:28vw}.panel{padding:8px}.hero{font-size:16px}.sub{max-width:160px}}
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Emberfall game canvas"></canvas>
+<div id="hud">
+  <div class="top">
+    <div class="panel">
+      <div class="brand">EMBERFALL // RIFTBOUND</div><div class="hero">ASH VALE <span style="color:#75e6f0">· Lv <span id="level">1</span></span></div>
+      <div class="barrow">HP <div class="bar"><div class="fill hp" id="hpbar"></div></div><span id="hptext">100 / 100</span></div>
+      <div class="barrow">XP <div class="bar"><div class="fill xp" id="xpbar"></div></div><span id="xptext">0 / 40</span></div>
+    </div>
+    <div class="panel right"><div class="objective" id="objective">OBJECTIVE: Clear the Riftlings</div><div class="sub" id="count">Enemies remaining: 5</div><div class="sub">Zone 01 · The Shattered Verge</div></div>
+  </div>
+  <div class="bottom">
+    <div class="panel help"><b>CONTROLS</b><br>Move <span class="ability">WASD</span>/<span class="ability">↑↓←→</span> · Attack <span class="ability">SPACE</span> · Arc burst <span class="ability">E</span> · Dash <span class="ability">SHIFT</span><br>Defeat enemies, collect XP shards, and survive. Camera follows your hero.</div>
+    <div class="panel" style="font-size:11px;color:#c8d7e9">SPACE: STRIKE &nbsp; · &nbsp; E: ARC BURST &nbsp; · &nbsp; SHIFT: DASH</div>
+  </div>
+</div>
+<div id="message"></div>
+<div id="start"><div class="card">
+  <div class="kicker">A BROWSER ACTION RPG PROTOTYPE</div>
+  <h1>EMBERFALL:<br><span style="color:#77e7f2">RIFTBOUND</span></h1>
+  <p>The sky cracked open above the Shattered Verge. Play as Ash Vale, a wandering Riftguard, and push back the creatures spilling through.</p>
+  <ul><li>Real-time movement and camera tracking</li><li>Melee combat, area burst, dash, enemy AI</li><li>Health, XP, leveling, pickups, win/lose states</li></ul>
+  <button class="btn" id="startbtn">ENTER THE VERGE</button>
+  <p class="note">Built as a self-contained prototype. Works on desktop keyboard and includes touch controls on phones/tablets.</p>
+</div></div>
+<div id="touch">
+  <div class="pad">
+    <button class="touchbtn empty">·</button><button class="touchbtn" data-hold="ArrowUp">▲</button><button class="touchbtn empty">·</button>
+    <button class="touchbtn" data-hold="ArrowLeft">◀</button><button class="touchbtn" data-hold="ArrowDown">▼</button><button class="touchbtn" data-hold="ArrowRight">▶</button>
+    <button class="touchbtn empty">·</button><button class="touchbtn" data-hold="ArrowDown">▼</button><button class="touchbtn empty">·</button>
+  </div>
+  <div class="actions"><button class="touchbtn" data-tap="Shift">DASH</button><button class="touchbtn" data-tap="KeyE">ARC<br>E</button><button class="touchbtn attack" data-tap="Space">STRIKE</button></div>
+</div>
+<script>
+(() => {
+'use strict';
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const $=id=>document.getElementById(id);
+let W=innerWidth,H=innerHeight,dpr=Math.min(devicePixelRatio||1,2);
+function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',resize);resize();
+const keys=new Set();let running=false,ended=false,last=0,elapsed=0,shake=0;
+const world={w:2200,h:1600};
+const player={x:1100,y:800,r:18,hp:100,maxHp:100,speed:235,faceX:1,faceY:0,attackCd:0,arcCd:0,dashCd:0,dashTime:0,invuln:0,xp:0,level:1,damage:24};
+let enemies=[],orbs=[],particles=[],texts=[],kills=0;
+const rand=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function spawnEnemy(x,y,kind='riftling'){const elite=kind==='brute';enemies.push({x,y,r:elite?24:15,hp:elite?100:46,maxHp:elite?100:46,speed:elite?65:85,damage:elite?15:9,kind,hitCd:0,flash:0,phase:rand(0,6)})}
+function reset(){player.x=1100;player.y=800;player.hp=player.maxHp=100;player.xp=0;player.level=1;player.damage=24;player.attackCd=player.arcCd=player.dashCd=player.dashTime=player.invuln=0;kills=0;enemies=[];orbs=[];particles=[];texts=[];ended=false;for(let i=0;i<5;i++){let a=rand(0,Math.PI*2),r=rand(250,490);spawnEnemy(clamp(player.x+Math.cos(a)*r,80,world.w-80),clamp(player.y+Math.sin(a)*r,80,world.h-80))}spawnEnemy(1450,490,'brute');updateHud()}
+reset();
+function burst(x,y,color,n=12){for(let i=0;i<n;i++){const a=rand(0,Math.PI*2),s=rand(45,250),life=rand(.18,.55);particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life,max:life,color,r:rand(2,5)})}}
+function floating(x,y,s,color='#fff'){texts.push({x,y,s,color,life:.8})}
+function damageEnemy(e,d){e.hp-=d;e.flash=.12;burst(e.x,e.y,e.kind==='brute'?'#ffb16b':'#8beeff',5);floating(e.x,e.y-20,`-${d}`,'#fff0c2');if(e.hp<=0){kills++;burst(e.x,e.y,'#83f0ff',20);orbs.push({x:e.x,y:e.y,r:8,pulse:rand(0,5)});if(Math.random()<.25)orbs.push({x:e.x+rand(-18,18),y:e.y+rand(-18,18),r:6,pulse:0});enemies=enemies.filter(a=>a!==e);if(kills===3)floating(player.x,player.y-45,'RIFT THINNING','#8beeff');if(enemies.length===0){for(let i=0;i<3;i++)spawnEnemy(rand(180,world.w-180),rand(180,world.h-180));spawnEnemy(rand(250,world.w-250),rand(250,world.h-250),'brute');$('objective').textContent='OBJECTIVE: Defeat the Rift Brute';}}}
+function attack(){if(!running||ended||player.attackCd>0)return;player.attackCd=.34;const reach=86,arc=.9;let hit=false;for(const e of [...enemies]){const dx=e.x-player.x,dy=e.y-player.y,d=Math.hypot(dx,dy),dot=(dx*player.faceX+dy*player.faceY)/(d||1);if(d<reach+e.r&&dot>-0.25){damageEnemy(e,player.damage);hit=true}}burst(player.x+player.faceX*42,player.y+player.faceY*42,'#ffe3a1',hit?9:4);shake=hit?5:2}
+function arcBurst(){if(!running||ended||player.arcCd>0)return;player.arcCd=4.3;const radius=175;burst(player.x,player.y,'#69eaff',44);shake=12;floating(player.x,player.y-55,'ARC BURST','#79efff');for(const e of [...enemies])if(dist(player,e)<radius+e.r)damageEnemy(e,48+player.level*5)}
+function dash(){if(!running||ended||player.dashCd>0)return;player.dashCd=1.5;player.dashTime=.19;player.invuln=.32;burst(player.x,player.y,'#a5f8ff',10)}
+function levelCheck(){const need=player.level*40;while(player.xp>=need){player.xp-=player.level*40;player.level++;player.maxHp+=15;player.hp=Math.min(player.maxHp,player.hp+35);player.damage+=5;floating(player.x,player.y-65,`LEVEL ${player.level}!`,'#ffe08c');burst(player.x,player.y,'#ffe08c',25)}}
+function updateHud(){$('level').textContent=player.level;$('hpbar').style.width=`${100*player.hp/player.maxHp}%`;$('hptext').textContent=`${Math.ceil(player.hp)} / ${player.maxHp}`;$('xpbar').style.width=`${100*player.xp/(player.level*40)}%`;$('xptext').textContent=`${player.xp} / ${player.level*40}`;$('count').textContent=`Enemies remaining: ${enemies.length}`;if(enemies.length&&$('objective').textContent.includes('Defeat the Rift Brute')&&!enemies.some(e=>e.kind==='brute'))$('objective').textContent='OBJECTIVE: Clear the Riftlings'}
+function update(dt){if(!running||ended)return;elapsed+=dt;player.attackCd=Math.max(0,player.attackCd-dt);player.arcCd=Math.max(0,player.arcCd-dt);player.dashCd=Math.max(0,player.dashCd-dt);player.dashTime=Math.max(0,player.dashTime-dt);player.invuln=Math.max(0,player.invuln-dt);
+let mx=0,my=0;if(keys.has('KeyA')||keys.has('ArrowLeft'))mx--;if(keys.has('KeyD')||keys.has('ArrowRight'))mx++;if(keys.has('KeyW')||keys.has('ArrowUp'))my--;if(keys.has('KeyS')||keys.has('ArrowDown'))my++;const mag=Math.hypot(mx,my)||1;mx/=mag;my/=mag;if(mx||my){player.faceX=mx;player.faceY=my}
+const speed=player.speed*(player.dashTime>0?3.1:1);player.x=clamp(player.x+mx*speed*dt,35,world.w-35);player.y=clamp(player.y+my*speed*dt,35,world.h-35);
+for(const e of enemies){e.hitCd=Math.max(0,e.hitCd-dt);e.flash=Math.max(0,e.flash-dt);e.phase+=dt;const dx=player.x-e.x,dy=player.y-e.y,d=Math.hypot(dx,dy)||1;if(d>e.r+player.r+3){e.x+=dx/d*e.speed*dt;e.y+=dy/d*e.speed*dt}if(d<e.r+player.r+4&&e.hitCd<=0&&player.invuln<=0){player.hp-=e.damage;player.invuln=.5;e.hitCd=e.kind==='brute'?.9:1.05;shake=7;burst(player.x,player.y,'#ff627d',10);floating(player.x,player.y-25,`-${e.damage}`,'#ff8796');if(player.hp<=0){player.hp=0;finish(false)}}}
+for(const o of [...orbs]){o.pulse+=dt;let d=dist(o,player);if(d<125){o.x+=(player.x-o.x)*Math.min(1,dt*3.7);o.y+=(player.y-o.y)*Math.min(1,dt*3.7)}if(d<player.r+o.r+6){player.xp+=10;burst(o.x,o.y,'#a6ffdc',8);orbs=orbs.filter(a=>a!==o);levelCheck()}}
+for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(.08,dt);p.vy*=Math.pow(.08,dt)}particles=particles.filter(p=>p.life>0);
+for(const t of texts){t.life-=dt;t.y-=35*dt}texts=texts.filter(t=>t.life>0);
+if(enemies.length===0){$('objective').textContent='OBJECTIVE: Rift contained';finish(true)}updateHud()}
+function finish(win){ended=true;running=false;$('start').style.display='grid';$('start').querySelector('.kicker').textContent=win?'RIFT SEALED':'MISSION FAILED';$('start').querySelector('h1').innerHTML=win?'VERGE<br><span style="color:#77e7f2">SECURED</span>':'ASHES<br><span style="color:#ff8194">REMAIN</span>';$('start').querySelector('p').textContent=win?'The creatures have been driven back. The Verge is quiet—for now.':'Ash has fallen. Recover, then return to the Verge.';$('start').querySelector('ul').innerHTML=`<li>Enemies defeated: ${kills}</li><li>Level reached: ${player.level}</li><li>${win?'You survived the first rift encounter.':'Try using Arc Burst when enemies cluster.'}</li>`;$('startbtn').textContent='PLAY AGAIN'}
+function rounded(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill()}
+function draw(){ctx.clearRect(0,0,W,H);const camX=clamp(player.x-W/2,0,world.w-W),camY=clamp(player.y-H/2,0,world.h-H);ctx.save();if(shake>0){ctx.translate(rand(-shake,shake),rand(-shake,shake));shake=Math.max(0,shake-.7)}
+ctx.translate(-camX,-camY);
+const bg=ctx.createLinearGradient(0,0,world.w,world.h);bg.addColorStop(0,'#111d2d');bg.addColorStop(.55,'#18263a');bg.addColorStop(1,'#0b1422');ctx.fillStyle=bg;ctx.fillRect(0,0,world.w,world.h);
+// ground grid / worn paving
+for(let x=0;x<world.w;x+=80)for(let y=0;y<world.h;y+=80){ctx.fillStyle=((x/80+y/80)%2===0)?'#ffffff04':'#00000008';ctx.fillRect(x,y,80,80);ctx.strokeStyle='#9ac7e10a';ctx.strokeRect(x,y,80,80)}
+// rift fissures
+for(let i=0;i<11;i++){let x=(i*197+130)%world.w,y=(i*283+120)%world.h;ctx.strokeStyle='#52d8f02b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x-35,y-15);ctx.lineTo(x-8,y+3);ctx.lineTo(x+12,y-20);ctx.lineTo(x+38,y+24);ctx.stroke();ctx.fillStyle='#52d8f008';ctx.beginPath();ctx.arc(x,y,38,0,Math.PI*2);ctx.fill()}
+ctx.strokeStyle='#9bbad455';ctx.lineWidth=5;ctx.strokeRect(20,20,world.w-40,world.h-40);
+// XP orbs
+for(const o of orbs){ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.pulse);ctx.shadowBlur=20;ctx.shadowColor='#76ffce';ctx.fillStyle='#b6ffe2';ctx.beginPath();ctx.moveTo(0,-o.r-2);ctx.lineTo(o.r,0);ctx.lineTo(0,o.r+2);ctx.lineTo(-o.r,0);ctx.closePath();ctx.fill();ctx.restore()}
+// enemies
+for(const e of enemies){ctx.save();ctx.translate(e.x,e.y);ctx.fillStyle='#0007';ctx.beginPath();ctx.ellipse(0,e.r*.7,e.r*1.25,e.r*.65,0,0,Math.PI*2);ctx.fill();ctx.shadowBlur=16;ctx.shadowColor=e.kind==='brute'?'#ff7e4d':'#56dff5';ctx.fillStyle=e.flash>0?'#fff':(e.kind==='brute'?'#7f3841':'#315f76');ctx.beginPath();ctx.arc(0,0,e.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle=e.kind==='brute'?'#ffb16b':'#86efff';ctx.lineWidth=3;ctx.stroke();ctx.fillStyle='#f7fcff';ctx.beginPath();ctx.arc(-e.r*.35,-e.r*.12,3,0,Math.PI*2);ctx.arc(e.r*.35,-e.r*.12,3,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ffbed1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-e.r*.45,-e.r*.75);ctx.lineTo(-e.r*.8,-e.r*1.3);ctx.moveTo(e.r*.45,-e.r*.75);ctx.lineTo(e.r*.8,-e.r*1.3);ctx.stroke();if(e.hp<e.maxHp||e.kind==='brute'){ctx.fillStyle='#000a';rounded(-e.r,-e.r-13,e.r*2,5,2);ctx.fillStyle=e.kind==='brute'?'#ff8e6b':'#7ceafa';rounded(-e.r,-e.r-13,e.r*2*e.hp/e.maxHp,5,2)}ctx.restore()}
+// player shadow
+ctx.fillStyle='#0008';ctx.beginPath();ctx.ellipse(player.x,player.y+14,22,11,0,0,Math.PI*2);ctx.fill();
+// player aura + body
+ctx.save();ctx.translate(player.x,player.y);if(player.invuln>0&&Math.floor(elapsed*24)%2===0)ctx.globalAlpha=.5;ctx.shadowBlur=player.arcCd<3.8?12:5;ctx.shadowColor='#70e7f5';ctx.fillStyle='#253f62';ctx.beginPath();ctx.arc(0,0,player.r+3,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#e6f5ff';ctx.beginPath();ctx.arc(0,-2,player.r*.67,0,Math.PI*2);ctx.fill();ctx.fillStyle='#55c7dd';ctx.beginPath();ctx.arc(0,4,player.r*.72,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ffe1a1';ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(player.faceX*8,player.faceY*8);ctx.lineTo(player.faceX*31,player.faceY*31);ctx.stroke();ctx.fillStyle='#f7fbff';ctx.beginPath();ctx.arc(player.faceX*7,player.faceY*7,5,0,Math.PI*2);ctx.fill();ctx.restore();
+// particles and floating text
+for(const p of particles){ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()}ctx.globalAlpha=1;
+for(const t of texts){ctx.globalAlpha=clamp(t.life,0,1);ctx.font='900 14px system-ui';ctx.textAlign='center';ctx.fillStyle=t.color;ctx.fillText(t.s,t.x,t.y)}ctx.globalAlpha=1;
+ctx.restore();
+// soft vignette
+const vg=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.25,W/2,H/2,Math.max(W,H)*.7);vg.addColorStop(0,'#0000');vg.addColorStop(1,'#020611a8');ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+// cooldown hints
+ctx.fillStyle='#d8e9fa';ctx.font='11px system-ui';ctx.textAlign='right';ctx.fillText(`ARC ${player.arcCd>0?player.arcCd.toFixed(1)+'s':'READY'}  ·  DASH ${player.dashCd>0?player.dashCd.toFixed(1)+'s':'READY'}`,W-18,H-75);
+}
+function loop(t){const dt=Math.min(.033,(t-last)/1000||0);last=t;update(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
+addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='Space')attack();if(e.code==='KeyE')arcBurst();if(e.code==='ShiftLeft'||e.code==='ShiftRight')dash()});
+addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>keys.clear());
+$('startbtn').addEventListener('click',()=>{if(ended||!running)reset();$('start').style.display='none';$('start').querySelector('.kicker').textContent='A BROWSER ACTION RPG PROTOTYPE';$('start').querySelector('h1').innerHTML='EMBERFALL:<br><span style="color:#77e7f2">RIFTBOUND</span>';$('start').querySelector('p').textContent='The sky cracked open above the Shattered Verge. Play as Ash Vale, a wandering Riftguard, and push back the creatures spilling through.';$('start').querySelector('ul').innerHTML='<li>Real-time movement and camera tracking</li><li>Melee combat, area burst, dash, enemy AI</li><li>Health, XP, leveling, pickups, win/lose states</li>';running=true;ended=false;last=performance.now()});
+document.querySelectorAll('[data-hold]').forEach(b=>{const code=b.dataset.hold;const on=e=>{e.preventDefault();keys.add(code)},off=e=>{e.preventDefault();keys.delete(code)};b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('pointerleave',off)});
+document.querySelectorAll('[data-tap]').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();const c=b.dataset.tap;if(c==='Space')attack();else if(c==='KeyE')arcBurst();else dash()}));
+})();
+</script>
+</body>
+</html>
